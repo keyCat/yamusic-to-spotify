@@ -6,12 +6,17 @@
 
 ## Локальный запуск
 
-Для запуска нужен Node.js 22 или новее. Команда `npm start` работает в Windows, Linux и macOS.
+1. Установите [Node.js с официального сайта](https://nodejs.org/en/download). Выберите версию LTS не ниже 22 с npm. Отдельно устанавливать npm не нужно.
+2. Откройте [страницу проекта](https://github.com/keyCat/yamusic-to-spotify). Нажмите Code → Download ZIP. Распакуйте скачанный архив.
+3. [Создайте приложение Spotify](https://developer.spotify.com/documentation/web-api/concepts/apps). Откройте его настройки в [Spotify Developer Dashboard](https://developer.spotify.com/dashboard). В поле Redirect URIs добавьте `http://127.0.0.1:3000/api/auth/spotify/callback`. [Проверьте правила для адреса возврата](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri).
+4. Откройте командную строку в папке проекта:
+   - **Windows:** откройте папку проекта в Проводнике. Нажмите на адресную строку, введите `cmd` и нажмите Enter.
+   - **macOS и Linux:** откройте терминал в папке проекта.
+5. В открывшемся окне введите `npm start` и нажмите Enter.
+6. При первом запуске введите Client ID приложения Spotify.
+7. Откройте `http://127.0.0.1:3000` в браузере.
 
-1. [Создайте приложение Spotify](https://developer.spotify.com/documentation/web-api/concepts/apps). Откройте его настройки в [Spotify Developer Dashboard](https://developer.spotify.com/dashboard). В поле Redirect URIs добавьте `http://127.0.0.1:3000/api/auth/spotify/callback`. [Проверьте правила для адреса возврата](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri).
-2. Запустите `npm start`.
-3. При первом запуске введите Client ID приложения Spotify.
-4. Откройте `http://127.0.0.1:3000`.
+Не закрывайте окно командной строки во время работы с приложением. Чтобы остановить приложение, нажмите Ctrl+C в этом окне.
 
 Команда устанавливает зависимости, создает файл `.env` и записывает в него уникальный ключ. При повторном запуске она сохраняет существующие настройки. Для другого адреса возврата измените `NUXT_SPOTIFY_REDIRECT_URI` в `.env` и в приложении Spotify.
 
@@ -22,7 +27,7 @@
 Для этого способа нужны Docker и Node.js 22 или новее. Файл `compose.yaml` собирает образ для архитектуры вашего компьютера. Он сохраняет данные SQLite в томе `app-data`. Контейнер принимает соединения через `127.0.0.1:3000` хоста.
 
 1. Создайте приложение Spotify с адресом возврата из раздела локального запуска.
-2. Запустите `npm run setup`. При запросе введите Client ID приложения Spotify.
+2. Откройте командную строку в папке проекта, как описано выше. Введите `npm run setup`. При запросе введите Client ID приложения Spotify.
 3. Запустите `docker compose up --build -d`.
 4. Откройте `http://127.0.0.1:3000`.
 
