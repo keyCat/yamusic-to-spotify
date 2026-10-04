@@ -18,7 +18,7 @@
     "desktop:compile": "tsc -p desktop/tsconfig.json",
     "desktop:build": "node scripts/build-desktop.mjs && npm run desktop:compile && node scripts/stage-desktop.mjs",
     "desktop:dev": "npm run desktop:build && node scripts/start-desktop.mjs",
-    "desktop:package": "electron-builder --config electron-builder.yml --publish never",
+    "desktop:package": "node scripts/package-desktop.mjs",
     "desktop:smoke": "node scripts/smoke-desktop.mjs"
   },
   "keywords": [],

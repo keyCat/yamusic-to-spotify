@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
+import { buildDesktopPackageEnvironment } from './desktop-package-environment.mjs'
 
 const require = createRequire(import.meta.url)
 const argumentsList = process.argv.slice(2)
@@ -30,7 +31,7 @@ if (process.platform === 'darwin') {
     '--dir', '--publish', 'never', `--${process.arch}`,
     '--config.directories.output=.desktop/dev', '--config.mac.identity=null',
     '--config.mac.notarize=false',
-  ], { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false' })
+  ], buildDesktopPackageEnvironment({ ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false' }))
   if (exitCode !== 0) process.exit(exitCode)
   const directory = process.arch === 'arm64' ? 'mac-arm64' : 'mac'
   binaryPath = resolve('.desktop/dev', directory, 'YMusicToSpotify.app', 'Contents', 'MacOS', 'YMusicToSpotify')
