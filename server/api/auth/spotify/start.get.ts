@@ -5,6 +5,9 @@ import { saveAuthorizationRequest } from '../../../storage/accounts'
 import { getDatabase } from '../../../storage/database'
 
 export default defineEventHandler((event) => {
+  if (useRuntimeConfig().desktopLaunchSecret) {
+    throw createError({ statusCode: 403, statusMessage: 'Используйте подключение Spotify в приложении.' })
+  }
   const config = getServerConfig()
   if (!config.spotifyClientId || !config.spotifyRedirectUri) {
     throw createError({ statusCode: 503, statusMessage: 'Приложение Spotify еще не настроено.' })

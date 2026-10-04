@@ -1,0 +1,143 @@
+name: Desktop builds
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to release (for example v1.0.0)'
+        required: true
+        type: string
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: desktop-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+      - name: Validate tag and app version
+        id: release
+        run: node scripts/desktop-release.mjs validate
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            platform: darwin
+            arch: arm64
+          - runner: macos-15-intel
+            platform: darwin
+            arch: x64
+          - runner: windows-2022
+            platform: win32
+            arch: x64
+          - runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    env:
+      DESKTOP_TARGET_PLATFORM: ${{ matrix.platform }}
+      DESKTOP_TARGET_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run desktop:build
+      - name: Build installers and archives (unsigned when no signing secrets exist)
+        run: npm run desktop:package -- --${{ matrix.arch }}
+        env:
+          CSC_LINK: ${{ secrets.DESKTOP_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_CSC_KEY_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.DESKTOP_WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_WIN_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.DESKTOP_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.DESKTOP_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.DESKTOP_APPLE_TEAM_ID }}
+      - name: Packaged smoke check (macOS / Windows)
+        if: runner.os != 'Linux'
+        run: npm run desktop:smoke -- --packaged
+      - name: Packaged smoke check (Linux)
+        if: runner.os == 'Linux'
+        # Use an unprivileged user with user namespaces enabled; retain Chromium sandboxing.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          xvfb-run -a npm run desktop:smoke -- --packaged
+      - name: Archive smoke check (Windows)
+        if: runner.os == 'Windows'
+        run: npm run desktop:smoke -- --archive
+      - name: Archive smoke check (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run desktop:smoke -- --archive
+      - name: Record distribution sizes and checksums
+        run: node scripts/check-desktop-artifacts.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.zip
+            release/*.tar.gz
+            release/*.sha256
+            release/artifact-sizes.json
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+      RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: release-artifacts
+      - name: Verify and collect all distributions and checksums
+        run: node scripts/desktop-release.mjs collect
+      - name: Publish GitHub Release after all assets are uploaded
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { pathToFileURL } = require('node:url')
+            const scriptUrl = pathToFileURL(process.env.GITHUB_WORKSPACE + '/scripts/publish-desktop-release.mjs')
+            const { publishDesktopRelease } = await import(scriptUrl.href)
+            const releaseUrl = await publishDesktopRelease({
+              github,
+              repository: context.repo,
+              tag: process.env.RELEASE_TAG,
+              commit: process.env.RELEASE_COMMIT,
+              artifactDirectory: 'release-publish',
+            })
+            core.info('Published ' + releaseUrl)

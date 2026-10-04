@@ -16,6 +16,25 @@ const {
 } = transferWizard
 
 describe('transfer wizard', () => {
+  it('keeps four numbered transfer steps in the browser', () => {
+    expect(transferWizard.buildWizardSteps(false).map(({ id, number }) => ({ id, number }))).toEqual([
+      { id: 1, number: 1 }, { id: 2, number: 2 }, { id: 3, number: 3 }, { id: 4, number: 4 },
+    ])
+  })
+
+  it('prepends desktop settings while preserving transfer state identities', () => {
+    const steps = transferWizard.buildWizardSteps(true)
+    expect(steps.map(({ id, number }) => ({ id, number }))).toEqual([
+      { id: 'settings', number: 1 }, { id: 1, number: 2 }, { id: 2, number: 3 },
+      { id: 3, number: 4 }, { id: 4, number: 5 },
+    ])
+    for (const state of ['matching', 'ready', 'transferring', 'completed'] as const) {
+      const activeStep = steps.find(step => step.id === stepForJobState(state))!
+      expect(activeStep.number).toBe(stepForJobState(state) + 1)
+      expect(transferWizard.navigableSteps(state)).toContain(activeStep.id)
+    }
+  })
+
   it('keeps account and pause messages', () => {
     expect(authorizationErrorText('access_denied')).toBe('Этот аккаунт не входит в список доступа.')
     expect(pauseReasonText('USER_PAUSED')).toBe('Пользователь приостановил задание.')

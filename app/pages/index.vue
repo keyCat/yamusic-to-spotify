@@ -14,10 +14,15 @@ import {
   navigableSteps,
   pauseReasonText,
   stepForJobState,
+  type TransferWizardStep,
 } from '../utils/transfer-wizard'
 
 const { data: status } = await useFetch<ProviderStatus>('/api/status')
 const route = useRoute()
+const router = useRouter()
+const isDesktop = ref(false)
+const isSettingsStep = ref(false)
+const authorizationMessage = useState('desktop-authorization-message', () => '')
 const matchingMessage = ref('')
 const {
   playlistUrl,
@@ -90,7 +95,26 @@ const quotaResetText = computed(() => {
 })
 const sourceCoverUrl = computed(() => playlist.value?.coverUrl || reviewDecisions.value[0]?.source.coverUrl || null)
 const availableSteps = computed(() => navigableSteps(matchingJob.value?.state || null))
+const activeWizardStep = computed<TransferWizardStep>(() => isSettingsStep.value ? 'settings' : activeStep.value)
+const availableWizardSteps = computed<TransferWizardStep[]>(() => isDesktop.value
+  ? ['settings', ...(status.value?.spotify.configured ? availableSteps.value : [])]
+  : availableSteps.value)
+const activeStepNumber = computed(() => isSettingsStep.value ? 1 : activeStep.value + (isDesktop.value ? 1 : 0))
 const canStartSearch = computed(() => !matchingJob.value || matchingJob.value.canRestart)
+function onDesktopSettingsCompleted() {
+  isSettingsStep.value = false
+  void router.replace({ query: { ...route.query, setup: 'complete' } })
+}
+async function navigateToWizardStep(step: TransferWizardStep) {
+  if (!availableWizardSteps.value.includes(step)) return
+  if (step === 'settings') {
+    isSettingsStep.value = true
+    void router.replace({ query: { ...route.query, setup: undefined } })
+    return
+  }
+  if (isDesktop.value) onDesktopSettingsCompleted()
+  await navigateToStep(step)
+}
 async function navigateToStep(step: 1 | 2 | 3 | 4) {
   if (!availableSteps.value.includes(step)) return
   activeStep.value = step
@@ -123,6 +147,8 @@ function startNewTransfer() {
 }
 
 onMounted(() => {
+  isDesktop.value = Boolean(window.desktopApi)
+  isSettingsStep.value = isDesktop.value && (route.query.setup !== 'complete' || !status.value?.spotify.configured)
   if (status.value?.yandex.connections.length) void loadYandexCollections()
   if (status.value?.spotify.connected) void restoreMatchingJob()
 })
@@ -133,22 +159,26 @@ onMounted(() => {
   <main class="mx-auto min-h-screen w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
     <header class="mb-6 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <div class="grid size-11 place-items-center rounded-2xl bg-[#ffcc00] text-lg font-black text-black">↗</div>
+        <img src="/icon.png" alt="" width="44" height="44" class="size-11 shrink-0" />
         <div>
           <p class="text-sm font-semibold text-white/55">Яндекс Музыка → Spotify</p>
           <h1 class="text-xl font-bold">Музыка без границ</h1>
         </div>
       </div>
-      <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/60">Шаг {{ activeStep }} из 4</span>
+      <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/60">Шаг {{ activeStepNumber }} из {{ isDesktop ? 5 : 4 }}</span>
     </header>
 
     <TransferStepper
-      :active-step="activeStep"
-      :available-steps="availableSteps"
-      @navigate="navigateToStep"
+      :active-step="activeWizardStep"
+      :available-steps="availableWizardSteps"
+      :is-desktop="isDesktop"
+      @navigate="navigateToWizardStep"
     />
 
-    <section class="mt-8 grid gap-8" :class="contentGridClass(activeStep)">
+    <p v-if="authorizationMessage" role="status" class="mt-6 text-sm text-amber-200">{{ authorizationMessage }}</p>
+    <DesktopSettings v-if="isSettingsStep" @completed="onDesktopSettingsCompleted" />
+
+    <section v-else class="mt-8 grid gap-8" :class="contentGridClass(activeStep)">
       <div>
         <p v-if="authorizationError" role="alert" class="mb-6 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-red-200">
           {{ authorizationError }}
@@ -199,8 +229,8 @@ onMounted(() => {
           :manual-search-entry="manualSearchEntry"
           @filter-change="changeMatchFilter"
           @page-size-change="changeReviewPageSize"
-          @confirm="(entryId, candidateUri) => saveReviewDecision(entryId, { action: 'select', candidateUri })"
-          @exclude="entryId => saveReviewDecision(entryId, { action: 'exclude' })"
+          @confirm="(entryId: string, candidateUri: string) => saveReviewDecision(entryId, { action: 'select', candidateUri })"
+          @exclude="(entryId: string) => saveReviewDecision(entryId, { action: 'exclude' })"
           @search="searchManually"
           @page-change="changeReviewPage"
         />

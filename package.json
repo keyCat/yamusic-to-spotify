@@ -1,5 +1,6 @@
 {
   "name": "yamusic-to-spotify",
+  "productName": "YMusicToSpotify",
   "version": "1.0.0",
   "description": "Перенос плейлистов из Яндекс Музыки в Spotify",
   "private": true,
@@ -12,7 +13,13 @@
     "preview": "nuxt preview --host 127.0.0.1",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "icons:generate": "node scripts/generate-icons.mjs",
+    "desktop:compile": "tsc -p desktop/tsconfig.json",
+    "desktop:build": "node scripts/build-desktop.mjs && npm run desktop:compile && node scripts/stage-desktop.mjs",
+    "desktop:dev": "npm run desktop:build && node scripts/start-desktop.mjs",
+    "desktop:package": "electron-builder --config electron-builder.yml --publish never",
+    "desktop:smoke": "node scripts/smoke-desktop.mjs"
   },
   "keywords": [],
   "author": "",
@@ -33,6 +40,9 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "24.19.1",
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
     "node-gyp": "^13.0.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",

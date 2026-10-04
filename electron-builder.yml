@@ -1,0 +1,51 @@
+appId: com.keycat.music-without-borders
+productName: YMusicToSpotify
+electronVersion: 44.5.1
+directories:
+  app: .desktop/app
+  output: release
+  buildResources: build
+files:
+  - desktop/**/*.js
+  - package.json
+  - '!node_modules/**/*'
+extraResources:
+  - from: .desktop/server
+    to: backend
+    filter:
+      - '**/*'
+      - '!**/*.map'
+      - '!**/.env*'
+      - '!**/*.sqlite*'
+      - '!**/*.log'
+asar: true
+npmRebuild: false
+electronLanguages: [en-US, ru]
+artifactName: '${name}-${version}-${os}-${arch}.${ext}'
+publish: null
+mac:
+  target: dmg
+  category: public.app-category.music
+  icon: build/icon.icns
+  hardenedRuntime: true
+  minimumSystemVersion: '13.0'
+beforePack: scripts/assert-desktop-target.cjs
+win:
+  target:
+    - nsis
+    - zip
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+linux:
+  target:
+    - AppImage
+    - deb
+    - tar.gz
+  icon: build/icon.png
+  executableName: music-without-borders
+  category: AudioVideo
+  maintainer: keyCat

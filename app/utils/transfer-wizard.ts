@@ -2,6 +2,19 @@ import type { MatchDecisionState, MatchFilter, TransferJobState } from '../../sh
 
 export type { MatchDecisionState, MatchFilter, TransferJobState } from '../../shared/transfer-api'
 
+export type TransferWizardStep = 'settings' | 1 | 2 | 3 | 4
+
+export function buildWizardSteps(isDesktop: boolean) {
+  const steps: Array<{ id: TransferWizardStep, title: string, description: string }> = [
+    { id: 1, title: 'Источник', description: 'Аккаунты и плейлист' },
+    { id: 2, title: 'Совпадения', description: 'Проверка треков' },
+    { id: 3, title: 'Подтверждение', description: 'Приватный плейлист' },
+    { id: 4, title: 'Перенос', description: 'Прогресс и отчет' },
+  ]
+  if (isDesktop) steps.unshift({ id: 'settings', title: 'Настройки', description: 'Spotify Client ID' })
+  return steps.map((step, index) => ({ ...step, number: index + 1 }))
+}
+
 const authorizationErrors: Record<string, string> = {
   invalid_request: 'Откройте сервис по адресу 127.0.0.1 и повторите подключение.',
   expired_request: 'Срок запроса истек. Повторите подключение Spotify.',
